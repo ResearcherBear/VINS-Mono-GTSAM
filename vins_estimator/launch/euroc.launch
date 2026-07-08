@@ -1,23 +1,10 @@
 <launch>
-    <arg name="config_path" default = "$(find feature_tracker)/../config/euroc/euroc_config.yaml" />
-	  <arg name="vins_path" default = "$(find feature_tracker)/../config/../" />
-    
-    <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="log">
-        <param name="config_file" type="string" value="$(arg config_path)" />
-        <param name="vins_folder" type="string" value="$(arg vins_path)" />
-    </node>
+    <let name="config_file" value="/home/pmsaikia/ros2_ws/src/VINS-Mono-GTSAM/vins_estimator/config/euroc/euroc_config.yaml" />
+    <let name="vins_folder" value="/home/pmsaikia/ros2_ws/src/VINS-Mono-GTSAM/vins_estimator/" />
 
-    <node name="vins_estimator" pkg="vins_estimator" type="vins_estimator" output="screen">
-       <param name="config_file" type="string" value="$(arg config_path)" />
-       <param name="vins_folder" type="string" value="$(arg vins_path)" />
-    </node>
+    <node pkg="feature_tracker" exec="feature_tracker_node" name="feature_tracker" output="screen" args="$(var config_file)" />
 
-    <node name="pose_graph" pkg="pose_graph" type="pose_graph" output="screen">
-        <param name="config_file" type="string" value="$(arg config_path)" />
-        <param name="visualization_shift_x" type="int" value="0" />
-        <param name="visualization_shift_y" type="int" value="0" />
-        <param name="skip_cnt" type="int" value="0" />
-        <param name="skip_dis" type="double" value="0" />
-    </node>
+    <node pkg="vins_estimator" exec="vins_estimator_node" name="vins_estimator" output="screen" args="$(var config_file) $(var vins_folder)" />
 
+    <node pkg="pose_graph" exec="pose_graph_node" name="pose_graph" output="screen" args="$(var config_file) $(var vins_folder)" />
 </launch>

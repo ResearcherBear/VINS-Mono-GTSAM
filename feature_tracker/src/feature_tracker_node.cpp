@@ -14,34 +14,36 @@ class FeatureTrackerNode : public rclcpp::Node
 {
 public:
     FeatureTrackerNode() : Node("feature_tracker")
+{
+}
+void init()
+{
+    readParameters(shared_from_this());
+
+    for (int i = 0; i < NUM_OF_CAM; i++)
+        trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
+
+    if (FISHEYE)
     {
-        readParameters(shared_from_this());
-
         for (int i = 0; i < NUM_OF_CAM; i++)
-            trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
-
-        if (FISHEYE)
         {
-            for (int i = 0; i < NUM_OF_CAM; i++)
+            trackerData[i].fisheye_mask = cv::imread(FISHEYE_MASK, 0);
+            if (!trackerData[i].fisheye_mask.data)
             {
-                trackerData[i].fisheye_mask = cv::imread(FISHEYE_MASK, 0);
-                if (!trackerData[i].fisheye_mask.data)
-                {
-                    RCLCPP_ERROR(this->get_logger(), "load mask fail");
-                    rclcpp::shutdown();
-                }
-                else
-                    RCLCPP_INFO(this->get_logger(), "load mask success");
+                RCLCPP_ERROR(this->get_logger(), "load mask fail");
             }
         }
-
-        sub_img = this->create_subscription<sensor_msgs::msg::Image>(
-            IMAGE_TOPIC, 100, std::bind(&FeatureTrackerNode::img_callback, this, std::placeholders::_1));
-
-        pub_img = this->create_publisher<sensor_msgs::msg::PointCloud>("feature", 1000);
-        pub_match = this->create_publisher<sensor_msgs::msg::Image>("feature_img", 1000);
-        pub_restart = this->create_publisher<std_msgs::msg::Bool>("restart", 1000);
     }
+
+    sub_img = this->create_subscription<sensor_msgs::msg::Image>(
+        IMAGE_TOPIC, 100, std::bind(&FeatureTrackerNode::img_callback, this, std::placeholders::_1));
+
+    pub_img = this->create_publisher<sensor_msgs::msg::PointCloud>("feature", 1000);
+    pub_match = this->create_publisher<sensor_msgs::msg::Image>("feature_img", 1000);
+    pub_restart = this->create_publisher<std_msgs::msg::Bool>("restart", 1000);
+}
+
+
 
 private:
     void img_callback(const sensor_msgs::msg::Image::SharedPtr img_msg)
@@ -54,18 +56,30 @@ private:
             last_image_time = timestamp;
             return;
         }
-        // detect unstable camera stream
-        if (timestamp - last_image_time > 1.0 || timestamp < last_image_time)
-        {
-            RCLCPP_WARN(this->get_logger(), "image discontinue! reset the feature tracker!");
-            first_image_flag = true;
-            last_image_time = 0;
-            pub_count = 1;
-            std_msgs::msg::Bool restart_flag;
-            restart_flag.data = true;
-            pub_restart->publish(restart_flag);
-            return;
-        }
+       if (timestamp - last_image_time > 1.0 || timestamp < last_image_time)
+{
+    if (last_image_time - timestamp > 1.0)
+    {
+        RCLCPP_WARN(this->get_logger(), "Bag looped, resetting feature tracker");
+        first_image_flag = true;
+        last_image_time = timestamp;
+        pub_count = 1;
+        std_msgs::msg::Bool restart_flag;
+        restart_flag.data = true;
+        pub_restart->publish(restart_flag);
+    }
+    else
+    {
+        RCLCPP_WARN(this->get_logger(), "image discontinue! reset the feature tracker!");
+        first_image_flag = true;
+        last_image_time = timestamp;
+        pub_count = 1;
+        std_msgs::msg::Bool restart_flag;
+        restart_flag.data = true;
+        pub_restart->publish(restart_flag);
+    }
+    return;
+}
         last_image_time = timestamp;
         // frequency control
         if (round(1.0 * pub_count / (timestamp - first_image_time)) <= FREQ)
@@ -222,6 +236,7 @@ int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<FeatureTrackerNode>();
+    node->init();
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

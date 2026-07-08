@@ -139,32 +139,36 @@ getMeasurements(rclcpp::Logger logger)
 class EstimatorNode : public rclcpp::Node
 {
 public:
-    EstimatorNode() : Node("vins_estimator")
-    {
-        readParameters(shared_from_this());
-        estimator.setParameter();
-        
-        RCLCPP_WARN(this->get_logger(), "waiting for image and imu...");
-        registerPub(shared_from_this());
+  EstimatorNode() : Node("vins_estimator")
+{
+}
 
-        sub_imu = this->create_subscription<sensor_msgs::msg::Imu>(
-            IMU_TOPIC, rclcpp::QoS(2000).best_effort().durability_volatile(),
-            std::bind(&EstimatorNode::imu_callback, this, std::placeholders::_1));
+void init()
+{
+    readParameters(shared_from_this());
+    estimator.setParameter();
+    
+    RCLCPP_WARN(this->get_logger(), "waiting for image and imu...");
+    registerPub(shared_from_this());
 
-        sub_image = this->create_subscription<sensor_msgs::msg::PointCloud>(
-            "/feature_tracker/feature", 2000,
-            std::bind(&EstimatorNode::feature_callback, this, std::placeholders::_1));
+    sub_imu = this->create_subscription<sensor_msgs::msg::Imu>(
+        IMU_TOPIC, rclcpp::QoS(2000).best_effort().durability_volatile(),
+        std::bind(&EstimatorNode::imu_callback, this, std::placeholders::_1));
 
-        sub_restart = this->create_subscription<std_msgs::msg::Bool>(
-            "/feature_tracker/restart", 2000,
-            std::bind(&EstimatorNode::restart_callback, this, std::placeholders::_1));
+    sub_image = this->create_subscription<sensor_msgs::msg::PointCloud>(
+        "/feature_tracker/feature", 2000,
+        std::bind(&EstimatorNode::feature_callback, this, std::placeholders::_1));
 
-        sub_relo_points = this->create_subscription<sensor_msgs::msg::PointCloud>(
-            "/pose_graph/match_points", 2000,
-            std::bind(&EstimatorNode::relocalization_callback, this, std::placeholders::_1));
+    sub_restart = this->create_subscription<std_msgs::msg::Bool>(
+        "/feature_tracker/restart", 2000,
+        std::bind(&EstimatorNode::restart_callback, this, std::placeholders::_1));
 
-        measurement_process = std::thread(&EstimatorNode::process, this);
-    }
+    sub_relo_points = this->create_subscription<sensor_msgs::msg::PointCloud>(
+        "/pose_graph/match_points", 2000,
+        std::bind(&EstimatorNode::relocalization_callback, this, std::placeholders::_1));
+
+    measurement_process = std::thread(&EstimatorNode::process, this);
+}
 
     ~EstimatorNode()
     {
@@ -178,8 +182,16 @@ private:
         double timestamp = rclcpp::Time(imu_msg->header.stamp).seconds();
         if (timestamp <= last_imu_t)
         {
-            RCLCPP_WARN(this->get_logger(), "imu message in disorder!");
-            return;
+             if (last_imu_t - timestamp > 1.0)
+             {
+                 RCLCPP_WARN(this->get_logger(), "Bag looped, resetting last_imu_t");
+                 last_imu_t = 0;
+             }       
+            else
+            {
+                 RCLCPP_WARN(this->get_logger(), "imu message in disorder! timestamp=%.9f last_imu_t=%.9f", timestamp, last_imu_t);
+                 return;
+             }
         }
         last_imu_t = timestamp;
 
@@ -373,6 +385,7 @@ int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<EstimatorNode>();
+    node->init();
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

@@ -6,6 +6,7 @@ set(CMAKE_CXX_FLAGS "-std=c++17")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 
 find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
@@ -47,6 +48,7 @@ add_executable(pose_graph_node
 
 ament_target_dependencies(pose_graph_node
     rclcpp
+    ament_index_cpp
     std_msgs
     nav_msgs
     sensor_msgs
@@ -66,6 +68,8 @@ target_link_libraries(pose_graph_node
 install(TARGETS pose_graph_node
     DESTINATION lib/${PROJECT_NAME}
 )
-
+install(DIRECTORY ../support_files
+  DESTINATION share/${PROJECT_NAME}/
+)
 ament_package()
 

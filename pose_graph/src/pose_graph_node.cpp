@@ -21,7 +21,9 @@
 #include "utility/tic_toc.h"
 #include "pose_graph.h"
 #include "utility/CameraPoseVisualization.h"
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include "parameters.h"
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 #define SKIP_FIRST_CNT 10
 using namespace std;
@@ -461,12 +463,10 @@ int main(int argc, char **argv)
         COL = fsSettings["image_width"];
         
         // Use a relative path or parameter for vocabulary
-        std::string pkg_path = "./"; // ROS 2 doesn't have ros::package::getPath
-        string vocabulary_file = pkg_path + "../support_files/brief_k10L6.bin";
-        posegraph.loadVocabulary(vocabulary_file);
+        std::string pkg_path = ament_index_cpp::get_package_share_directory("pose_graph") + "/";
+string vocabulary_file = pkg_path + "support_files/brief_k10L6.bin";
+BRIEF_PATTERN_FILE = pkg_path + "support_files/brief_pattern.yml";
 
-        BRIEF_PATTERN_FILE = pkg_path + "../support_files/brief_pattern.yml";
-        m_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(config_file.c_str());
 
         fsSettings["image_topic"] >> IMAGE_TOPIC;
         fsSettings["pose_graph_save_path"] >> POSE_GRAPH_SAVE_PATH;

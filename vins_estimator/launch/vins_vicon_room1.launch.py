@@ -24,7 +24,12 @@ def generate_launch_description():
         parameters=[{
             'config_file': LaunchConfiguration('config_file'),
             'vins_folder': vins_estimator_dir + '/'
-        }]
+        }],
+        remappings=[
+            ('feature', 'feature_tracker/feature'),
+            ('feature_img', 'feature_tracker/feature_img'),
+            ('restart', 'feature_tracker/restart'),
+        ]
     )
     
     # VINS Estimator Node
@@ -41,18 +46,18 @@ def generate_launch_description():
     
     # Pose Graph Node
     pose_graph_node = Node(
-        package='pose_graph',
-        executable='pose_graph_node',
-        name='pose_graph',
-        output='screen',
-        parameters=[{
-            'config_file': LaunchConfiguration('config_file'),
-            'visualization_shift_x': 0,
-            'visualization_shift_y': 0,
-            'skip_cnt': 0,
-            'skip_dis': 0.0
-        }]
-    )
+    package='pose_graph',
+    executable='pose_graph_node',
+    name='pose_graph',
+    output='screen',
+    parameters=[{
+        'config_file': LaunchConfiguration('config_file'),
+        'visualization_shift_x': 0,
+        'visualization_shift_y': 0,
+        'skip_cnt': 0,
+        'skip_dis': 0.0
+    }]
+)
 
     return LaunchDescription([
         config_file_arg,
