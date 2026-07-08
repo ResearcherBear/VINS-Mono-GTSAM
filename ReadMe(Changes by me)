@@ -1,0 +1,21 @@
+1. Fixed the std::bad_weak_ptr crash (architectural fix)
+Across all three nodes, shared_from_this() was being called inside the constructor — invalid in ROS 2, since the object isn't yet owned by a shared_ptr at that point. You split each node into an empty constructor + a separate init() method that does all the ROS-dependent setup, called from main() right after std::make_shared<Node>().
+
+feature_tracker_node.cpp — constructor emptied, plus fixed a leftover nested function (a function defined inside another function, which isn't valid C++)
+estimator_node.cpp (vins_estimator) — same split; had two shared_from_this() calls to move
+pose_graph_node.cpp — checked, didn't actually need this fix, but you touched it for the next issue below
+
+2. Fixed pose_graph's missing dependency (CMakeLists.txt)
+Added find_package(ament_index_cpp REQUIRED) and included it in ament_target_dependencies(), plus an install(DIRECTORY ../support_files ...) rule so the loop-closure vocabulary file actually gets installed.
+3. Fixed hardcoded/broken paths
+
+euroc_config.yaml — output paths were hardcoded to a different developer's home directory (/home/prathana/...); corrected to your machine's path
+Loop-closure vocabulary path in pose_graph — was using a leftover ROS 1-style relative path; replaced with ament_index_cpp::get_package_share_directory("pose_graph")
+
+4. Fixed launch files (the bulk of your modified file count)
+
+All the .launch / .launch.py files (3dm, black_box, cla, euroc, euroc_no_extrinsic_param, realsense_color, realsense_fisheye, tum, vins_rviz, vins_vicon_room1) — modernized ROS 1 XML syntax ($(find) → $(find-pkg-share)), fixed node execution tags and data types for ROS 2
+Specifically added the missing config_file parameter to pose_graph's launch entry — it was being passed to the other two nodes but not this one, which is why pose_graph kept crashing even after the config fix
+
+5. Topic/QoS routing fixes
+Fixed a namespace mismatch (feature_tracker published to /feature, but vins_estimator subscribed to /feature_tracker/feature) via launch-file remapping, and set explicit QoS profiles for IMU subscriptions.
